@@ -28,9 +28,9 @@ go install github.com:LeanerCloud/f2c@latest
 
 Assuming the GOPATH/bin is in your PATH, you can run the program with the files you want to copy as arguments:
 
-    ```sh
-    f2c file1.txt file2.txt file3.txt
-    ```
+```shell
+f2c file1.txt file2.txt file3.txt
+```
 
     Replace `file1.txt`, `file2.txt`, and `file3.txt` with your file names.
 
