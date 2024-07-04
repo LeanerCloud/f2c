@@ -29,10 +29,8 @@ go install github.com:LeanerCloud/f2c@latest
 Assuming the GOPATH/bin is in your PATH, you can run the program with the files you want to copy as arguments:
 
 ```shell
-f2c file1.txt file2.txt file3.txt
+f2c *.txt
 ```
-
-    Replace `file1.txt`, `file2.txt`, and `file3.txt` with your file names.
 
 3. The combined content will be copied to your clipboard, ready to paste.
 
@@ -50,12 +48,6 @@ Hello, this is file1.
 
 ```txt
 Hello, this is file2.
-```
-
-Running the tool:
-
-```sh
-f2c file1.txt file2.txt
 ```
 
 Results in the clipboard containing:
