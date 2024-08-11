@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"flag"
 	"fmt"
 	"io"
 	"net/http"
@@ -12,17 +13,27 @@ import (
 	"github.com/atotto/clipboard"
 )
 
+var excludeFlag string
+
 func main() {
-	if len(os.Args) < 2 {
-		fmt.Println("Please provide directory paths as command-line arguments.")
+	flag.StringVar(&excludeFlag, "exclude", "", "Comma-separated list of strings to exclude when appearing in file names (e.g., -exclude=.git,.tmp)")
+	flag.Parse()
+
+	if flag.NArg() < 1 {
+		fmt.Println("Please provide file or directory names as command-line arguments.")
 		os.Exit(1)
+	}
+
+	excludeList := strings.Split(excludeFlag, ",")
+	for i, s := range excludeList {
+		excludeList[i] = strings.TrimSpace(s)
 	}
 
 	var output strings.Builder
 	var copiedFiles []string
 
-	for _, dirPath := range os.Args[1:] {
-		if err := processDirectory(dirPath, &output, &copiedFiles); err != nil {
+	for _, dirPath := range flag.Args() {
+		if err := processDirectory(dirPath, &output, &copiedFiles, excludeList); err != nil {
 			fmt.Fprintf(os.Stderr, "Error processing directory %s: %v\n", dirPath, err)
 			return
 		}
@@ -41,12 +52,12 @@ func main() {
 	}
 }
 
-func processDirectory(dirPath string, output *strings.Builder, copiedFiles *[]string) error {
+func processDirectory(dirPath string, output *strings.Builder, copiedFiles *[]string, excludeList []string) error {
 	return filepath.Walk(dirPath, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
-		if !info.IsDir() && isTextFile(path) {
+		if !info.IsDir() && isTextFile(path) && !isExcluded(path, excludeList) {
 			if err := addFileToOutput(path, output); err != nil {
 				return fmt.Errorf("error processing file %s: %w", path, err)
 			}
@@ -54,6 +65,15 @@ func processDirectory(dirPath string, output *strings.Builder, copiedFiles *[]st
 		}
 		return nil
 	})
+}
+
+func isExcluded(path string, excludeList []string) bool {
+	for _, exclude := range excludeList {
+		if exclude != "" && strings.Contains(path, exclude) {
+			return true
+		}
+	}
+	return false
 }
 
 func isTextFile(filePath string) bool {
