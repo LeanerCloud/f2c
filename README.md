@@ -6,9 +6,12 @@ It's useful for pasting entire projects into large language models (LLMs) for an
 
 ## Features
 
-- Reads contents of multiple files given as command-line arguments
-- Prefixes each file's content with a comment showing the file name
-- Copies the combined content to the clipboard
+- Reads contents of multiple files given as command-line arguments.
+- Prefixes each file's content with a comment showing the file name.
+- Copies the combined content to the clipboard.
+- walks directories recursively and gathers all their files.
+- Ignores non-text files.
+- Can exclude files matching a list of paths, given as comma-separated list.
 
 ## Requirements
 
@@ -30,6 +33,12 @@ Assuming the GOPATH/bin is in your PATH, you can run the program with the files 
 
 ```shell
 f2c *.txt
+```
+
+or
+
+```shell
+f2c -exclude .git .
 ```
 
 3. The combined content will be copied to your clipboard, ready to paste.
