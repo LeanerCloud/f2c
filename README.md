@@ -38,10 +38,10 @@ f2c *.txt
 or
 
 ```shell
-f2c -exclude .git .
+f2c --exclude .git . # -e works as well to save you some typing
 ```
 
-3. The combined content will be copied to your clipboard, ready to paste.
+The combined content will be copied to your clipboard, ready to paste.
 
 ## Example
 
