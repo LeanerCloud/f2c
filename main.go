@@ -2,7 +2,6 @@ package main
 
 import (
 	"bufio"
-	"flag"
 	"fmt"
 	"io"
 	"net/http"
@@ -11,16 +10,32 @@ import (
 	"strings"
 
 	"github.com/atotto/clipboard"
+	"github.com/spf13/cobra"
 )
 
 var excludeFlag string
 
-func main() {
-	flag.StringVar(&excludeFlag, "exclude", "", "Comma-separated list of strings to exclude when appearing in file names (e.g., -exclude=.git,.tmp)")
-	flag.Parse()
+var rootCmd = &cobra.Command{
+	Use:   "f2c [flags] [file/directory...]",
+	Short: "File-to-Clipboard Tool",
+	Long:  `f2c is a tool that copies the contents of multiple files to the clipboard, with each file's content prefixed by a comment indicating the file name.`,
+	Run:   run,
+}
 
-	if flag.NArg() < 1 {
-		fmt.Println("Please provide file or directory names as command-line arguments.")
+func init() {
+	rootCmd.Flags().StringVarP(&excludeFlag, "exclude", "e", "", "Comma-separated list of strings to exclude when appearing in file names")
+}
+
+func main() {
+	if err := rootCmd.Execute(); err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+}
+
+func run(cmd *cobra.Command, args []string) {
+	if len(args) < 1 {
+		fmt.Println("Please provide file or directory names as arguments.")
 		os.Exit(1)
 	}
 
@@ -32,7 +47,7 @@ func main() {
 	var output strings.Builder
 	var copiedFiles []string
 
-	for _, dirPath := range flag.Args() {
+	for _, dirPath := range args {
 		if err := processDirectory(dirPath, &output, &copiedFiles, excludeList); err != nil {
 			fmt.Fprintf(os.Stderr, "Error processing directory %s: %v\n", dirPath, err)
 			return
