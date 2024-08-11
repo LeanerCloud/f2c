@@ -4,7 +4,9 @@ import (
 	"bufio"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/atotto/clipboard"
@@ -12,14 +14,16 @@ import (
 
 func main() {
 	if len(os.Args) < 2 {
-		fmt.Println("Please provide file names as command-line arguments.")
+		fmt.Println("Please provide directory paths as command-line arguments.")
 		os.Exit(1)
 	}
 
 	var output strings.Builder
-	for _, fileName := range os.Args[1:] {
-		if err := addFileToOutput(fileName, &output); err != nil {
-			fmt.Fprintf(os.Stderr, "Error processing file %s: %v\n", fileName, err)
+	var copiedFiles []string
+
+	for _, dirPath := range os.Args[1:] {
+		if err := processDirectory(dirPath, &output, &copiedFiles); err != nil {
+			fmt.Fprintf(os.Stderr, "Error processing directory %s: %v\n", dirPath, err)
 			return
 		}
 	}
@@ -31,6 +35,44 @@ func main() {
 	}
 
 	fmt.Println("Content copied to clipboard.")
+	fmt.Println("Files processed:")
+	for _, file := range copiedFiles {
+		fmt.Println(file)
+	}
+}
+
+func processDirectory(dirPath string, output *strings.Builder, copiedFiles *[]string) error {
+	return filepath.Walk(dirPath, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if !info.IsDir() && isTextFile(path) {
+			if err := addFileToOutput(path, output); err != nil {
+				return fmt.Errorf("error processing file %s: %w", path, err)
+			}
+			*copiedFiles = append(*copiedFiles, path)
+		}
+		return nil
+	})
+}
+
+func isTextFile(filePath string) bool {
+	file, err := os.Open(filePath)
+	if err != nil {
+		return false
+	}
+	defer file.Close()
+
+	// Read the first 512 bytes
+	buffer := make([]byte, 512)
+	n, err := file.Read(buffer)
+	if err != nil && err != io.EOF {
+		return false
+	}
+
+	// Use the http.DetectContentType function to detect the content type
+	contentType := http.DetectContentType(buffer[:n])
+	return strings.HasPrefix(contentType, "text/")
 }
 
 func addFileToOutput(fileName string, output *strings.Builder) error {
