@@ -54,7 +54,8 @@ f2c -e .git,vendor .
 ```
 
 Example output:
-```
+
+```text
 // file1.txt
 Hello, this is file1.
 
@@ -64,7 +65,7 @@ Hello, this is file2.
 
 ### Go Code Analysis Mode Usage
 
-Extract a function and its dependencies:
+Extract a function and its dependencies from the current directory:
 
 ```shell
 # Extract a specific function
