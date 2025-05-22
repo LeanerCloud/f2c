@@ -7,6 +7,8 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"path/filepath"
+	"regexp"
 	"strings"
 )
 
@@ -23,17 +25,35 @@ type ProcessedItem struct {
 	Lines  int
 }
 
+// GitIgnorePattern represents a gitignore pattern
+type GitIgnorePattern struct {
+	pattern    string
+	regex      *regexp.Regexp
+	isNegation bool
+	isDir      bool
+}
+
 // Processor handles the processing of files and functions
 type Processor struct {
-	output         strings.Builder
-	processedItems []ProcessedItem
+	output            strings.Builder
+	processedItems    []ProcessedItem
+	gitignorePatterns []GitIgnorePattern
 }
 
 // New creates a new Processor
 func New() *Processor {
-	return &Processor{
-		processedItems: make([]ProcessedItem, 0),
+	p := &Processor{
+		processedItems:    make([]ProcessedItem, 0),
+		gitignorePatterns: make([]GitIgnorePattern, 0),
 	}
+
+	// Load built-in ignore patterns first
+	p.loadBuiltinIgnorePatterns()
+
+	// Load .gitignore patterns if available (these can override built-ins with negation)
+	p.loadGitignorePatterns()
+
+	return p
 }
 
 // GetOutput returns the processed output and list of processed items
@@ -200,4 +220,224 @@ func IsTextFile(filePath string) bool {
 
 	contentType := http.DetectContentType(buffer[:n])
 	return strings.HasPrefix(contentType, "text/")
+}
+
+// IsGitIgnored checks if a file path matches any gitignore pattern
+func (p *Processor) IsGitIgnored(filePath string) bool {
+	// Convert to relative path for consistent matching
+	relPath := strings.TrimPrefix(filePath, "./")
+
+	ignored := false
+
+	for _, pattern := range p.gitignorePatterns {
+		// Check if pattern matches the full path or just the filename
+		matches := pattern.regex.MatchString(relPath) || pattern.regex.MatchString(filepath.Base(relPath))
+
+		// For directory patterns, also check if any parent directory matches
+		if !matches && pattern.isDir {
+			pathParts := strings.Split(relPath, "/")
+			for i := range pathParts {
+				partialPath := strings.Join(pathParts[:i+1], "/")
+				if pattern.regex.MatchString(partialPath) {
+					matches = true
+					break
+				}
+			}
+		}
+
+		if matches {
+			if pattern.isNegation {
+				ignored = false // Negation patterns override previous ignores
+			} else {
+				ignored = true
+			}
+		}
+	}
+
+	return ignored
+}
+
+// loadBuiltinIgnorePatterns loads common patterns that should typically be ignored
+func (p *Processor) loadBuiltinIgnorePatterns() {
+	builtinPatterns := []string{
+		// Git directory
+		".git/",
+
+		// Package managers and lock files
+		"package.json",
+		"package-lock.json",
+		"yarn.lock",
+		"pnpm-lock.yaml",
+		"composer.lock",
+		"Gemfile.lock",
+		"Pipfile.lock",
+		"poetry.lock",
+
+		// Go specific
+		"go.sum",
+		"go.work.sum",
+		"vendor/",
+
+		// Node.js
+		"node_modules/",
+
+		// Python
+		"__pycache__/",
+		"*.pyc",
+		"*.pyo",
+		"*.pyd",
+		".Python",
+		"pip-log.txt",
+		"pip-delete-this-directory.txt",
+		".venv/",
+		"venv/",
+		"ENV/",
+		"env/",
+
+		// Java/Maven/Gradle
+		"target/",
+		".gradle/",
+		"build/",
+		"*.class",
+		"*.jar",
+		"*.war",
+
+		// .NET
+		"bin/",
+		"obj/",
+		"*.dll",
+		"*.exe",
+		"*.pdb",
+
+		// Build and dist directories
+		"dist/",
+		"build/",
+		"out/",
+		".next/",
+		".nuxt/",
+
+		// IDE and editor files
+		".vscode/",
+		".idea/",
+		"*.swp",
+		"*.swo",
+		"*~",
+		".DS_Store",
+		"Thumbs.db",
+
+		// Logs
+		"*.log",
+		"logs/",
+		"npm-debug.log*",
+		"yarn-debug.log*",
+		"yarn-error.log*",
+
+		// Environment and config
+		".env",
+		".env.local",
+		".env.*.local",
+
+		// Coverage and test results
+		"coverage/",
+		".nyc_output/",
+		".coverage",
+		"htmlcov/",
+		".pytest_cache/",
+		"test-results/",
+
+		// Temporary files
+		"*.tmp",
+		"*.temp",
+		".cache/",
+		".temp/",
+		"tmp/",
+	}
+
+	for _, pattern := range builtinPatterns {
+		gitPattern := p.parseGitignorePattern(pattern)
+		if gitPattern.regex != nil {
+			p.gitignorePatterns = append(p.gitignorePatterns, gitPattern)
+		}
+	}
+}
+
+// loadGitignorePatterns loads patterns from .gitignore file if it exists
+func (p *Processor) loadGitignorePatterns() {
+	gitignoreFile := ".gitignore"
+	if _, err := os.Stat(gitignoreFile); os.IsNotExist(err) {
+		return
+	}
+
+	file, err := os.Open(gitignoreFile)
+	if err != nil {
+		return
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+
+		pattern := p.parseGitignorePattern(line)
+		if pattern.regex != nil {
+			p.gitignorePatterns = append(p.gitignorePatterns, pattern)
+		}
+	}
+}
+
+// parseGitignorePattern converts a gitignore pattern to a compiled regex
+func (p *Processor) parseGitignorePattern(pattern string) GitIgnorePattern {
+	original := pattern
+	isNegation := false
+	isDir := false
+
+	// Handle negation patterns (starting with !)
+	if strings.HasPrefix(pattern, "!") {
+		isNegation = true
+		pattern = pattern[1:]
+	}
+
+	// Handle directory patterns (ending with /)
+	if strings.HasSuffix(pattern, "/") {
+		isDir = true
+		pattern = pattern[:len(pattern)-1]
+	}
+
+	// Convert gitignore pattern to regex
+	regexPattern := p.gitignoreToRegex(pattern)
+	regex, err := regexp.Compile(regexPattern)
+	if err != nil {
+		return GitIgnorePattern{}
+	}
+
+	return GitIgnorePattern{
+		pattern:    original,
+		regex:      regex,
+		isNegation: isNegation,
+		isDir:      isDir,
+	}
+}
+
+// gitignoreToRegex converts a gitignore pattern to a regex pattern
+func (p *Processor) gitignoreToRegex(pattern string) string {
+	// Escape special regex characters except for gitignore wildcards
+	pattern = regexp.QuoteMeta(pattern)
+
+	// Convert gitignore wildcards to regex equivalents
+	pattern = strings.ReplaceAll(pattern, `\*\*`, `.*`)  // ** matches any number of directories
+	pattern = strings.ReplaceAll(pattern, `\*`, `[^/]*`) // * matches anything except /
+	pattern = strings.ReplaceAll(pattern, `\?`, `.`)     // ? matches any single character
+
+	// Handle leading slash (absolute path from repo root)
+	if strings.HasPrefix(pattern, "/") {
+		pattern = "^" + pattern[1:] + "$"
+	} else {
+		// Pattern can match anywhere in the path
+		pattern = "(^|/)" + pattern + "($|/)"
+	}
+
+	return pattern
 }

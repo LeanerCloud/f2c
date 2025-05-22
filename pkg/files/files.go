@@ -47,7 +47,7 @@ func (fp *FileProcessor) processDirectory(dirPath string) error {
 		if err != nil {
 			return err
 		}
-		if !info.IsDir() && processor.IsTextFile(path) && !fp.isExcluded(path) {
+		if !info.IsDir() && processor.IsTextFile(path) && !fp.isExcluded(path) && !fp.IsGitIgnored(path) {
 			content, err := fp.ReadFileContent(path)
 			if err != nil {
 				return fmt.Errorf("error processing file %s: %w", path, err)

@@ -64,7 +64,7 @@ func (ca *CodeAnalyzer) findTargetFunction() error {
 		if entry.IsDir() {
 			return nil
 		}
-		if strings.HasSuffix(entry.Name(), ".go") {
+		if strings.HasSuffix(entry.Name(), ".go") && !ca.IsGitIgnored(path) {
 			fSet := token.NewFileSet()
 			node, err := parser.ParseFile(fSet, path, nil, parser.ParseComments)
 			if err != nil {
@@ -148,7 +148,7 @@ func (ca *CodeAnalyzer) collectDependencies() error {
 		if entry.IsDir() {
 			return nil
 		}
-		if strings.HasSuffix(entry.Name(), ".go") {
+		if strings.HasSuffix(entry.Name(), ".go") && !ca.IsGitIgnored(path) {
 			fSet := token.NewFileSet()
 			node, err := parser.ParseFile(fSet, path, nil, parser.ParseComments)
 			if err != nil {
