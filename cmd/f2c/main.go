@@ -1,3 +1,4 @@
+// cmd/f2c/main.go
 package main
 
 import (
@@ -51,16 +52,16 @@ func run(cmd *cobra.Command, args []string) {
 			os.Exit(1)
 		}
 
-		output, processedItems := processor.GetOutput()
+		output, processedItemsTable := processor.GetOutput()
 		if err := utils.CopyToClipboard(output); err != nil {
 			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 			os.Exit(1)
 		}
 
 		fmt.Println("Content copied to clipboard.")
-		fmt.Println("Files processed:")
-		for _, item := range processedItems {
-			fmt.Println(item)
+		fmt.Println("\nFiles processed:")
+		for _, line := range processedItemsTable {
+			fmt.Println(line)
 		}
 	} else {
 		// Function processing mode
@@ -70,16 +71,16 @@ func run(cmd *cobra.Command, args []string) {
 			os.Exit(1)
 		}
 
-		output, processedItems := analyzer.GetOutput()
+		output, processedItemsTable := analyzer.GetOutput()
 		if err := utils.CopyToClipboard(output); err != nil {
 			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 			os.Exit(1)
 		}
 
 		fmt.Println("Successfully copied to clipboard")
-		fmt.Println("Items processed:")
-		for _, item := range processedItems {
-			fmt.Println(item)
+		fmt.Println("\nItems processed:")
+		for _, line := range processedItemsTable {
+			fmt.Println(line)
 		}
 	}
 }

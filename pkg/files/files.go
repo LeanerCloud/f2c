@@ -1,3 +1,4 @@
+// pkg/files/files.go
 package files
 
 import (
@@ -52,7 +53,14 @@ func (fp *FileProcessor) processDirectory(dirPath string) error {
 				return fmt.Errorf("error processing file %s: %w", path, err)
 			}
 			fp.AddToOutput(path, content)
-			fp.AddProcessedItem(path)
+
+			// Get file stats and add with enhanced info
+			stats, err := fp.GetFileStats(path)
+			if err != nil {
+				fp.AddProcessedItem(path)
+			} else {
+				fp.AddProcessedItemWithStats(path, stats)
+			}
 		}
 		return nil
 	})

@@ -1,3 +1,4 @@
+// pkg/code/analyzer.go
 package code
 
 import (
@@ -211,7 +212,14 @@ func (ca *CodeAnalyzer) processDeclaration(decl ast.Decl, path string, fSet *tok
 	snippet := strings.Join(lines[startLine-1:endLine], "\n")
 
 	ca.AddToOutput(header, snippet)
-	ca.AddProcessedItem(name)
+
+	// Get file stats and add with enhanced info
+	stats, err := ca.GetFileStats(path)
+	if err != nil {
+		ca.AddProcessedItem(name)
+	} else {
+		ca.AddProcessedItemWithStats(name, stats)
+	}
 
 	return nil
 }
