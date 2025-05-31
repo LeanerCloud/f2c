@@ -86,16 +86,34 @@ func (p *Processor) AddProcessedItemWithStats(item string, stats FileStats) {
 	})
 }
 
-// formatProcessedItems formats the processed items as a table
+// formatProcessedItems formats the processed items as a table with totals
 func (p *Processor) formatProcessedItems() []string {
 	if len(p.processedItems) == 0 {
 		return []string{}
+	}
+
+	// Calculate totals
+	var totalSizeKB float64
+	var totalLines int
+	var validStatsCount int
+
+	for _, item := range p.processedItems {
+		if item.SizeKB > 0 || item.Lines > 0 {
+			totalSizeKB += item.SizeKB
+			totalLines += item.Lines
+			validStatsCount++
+		}
 	}
 
 	// Find the maximum width for each column
 	maxNameWidth := len("File/Item")
 	maxSizeWidth := len("Size (KB)")
 	maxLinesWidth := len("Lines")
+
+	// Check against "TOTAL" row as well
+	if len("TOTAL") > maxNameWidth {
+		maxNameWidth = len("TOTAL")
+	}
 
 	for _, item := range p.processedItems {
 		if len(item.Name) > maxNameWidth {
@@ -115,6 +133,16 @@ func (p *Processor) formatProcessedItems() []string {
 		if len(linesStr) > maxLinesWidth {
 			maxLinesWidth = len(linesStr)
 		}
+	}
+
+	// Check total values for width
+	totalSizeStr := fmt.Sprintf("%.1f", totalSizeKB)
+	if len(totalSizeStr) > maxSizeWidth {
+		maxSizeWidth = len(totalSizeStr)
+	}
+	totalLinesStr := fmt.Sprintf("%d", totalLines)
+	if len(totalLinesStr) > maxLinesWidth {
+		maxLinesWidth = len(totalLinesStr)
 	}
 
 	// Create the formatted output
@@ -142,6 +170,23 @@ func (p *Processor) formatProcessedItems() []string {
 
 		row := fmt.Sprintf("%-*s  %*s  %*s", maxNameWidth, item.Name, maxSizeWidth, sizeStr, maxLinesWidth, linesStr)
 		result = append(result, row)
+	}
+
+	// Add separator before totals
+	result = append(result, separator)
+
+	// Add totals row
+	totalRow := fmt.Sprintf("%-*s  %*s  %*s", maxNameWidth, "TOTAL", maxSizeWidth, totalSizeStr, maxLinesWidth, totalLinesStr)
+	result = append(result, totalRow)
+
+	// Add summary information
+	result = append(result, "")
+	result = append(result, fmt.Sprintf("Summary: %d files processed, %.1f KB total, %d lines total",
+		len(p.processedItems), totalSizeKB, totalLines))
+
+	if validStatsCount < len(p.processedItems) {
+		result = append(result, fmt.Sprintf("Note: %d items had no size/line statistics available",
+			len(p.processedItems)-validStatsCount))
 	}
 
 	return result
